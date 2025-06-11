@@ -9,7 +9,7 @@ x-logging: &logging
 services:
   consensus:
     build:
-      context: ./sentinel
+      context: ./sentinelhub
       dockerfile: ${SENTINEL_DOCKERFILE}
       args:
         - USER=sentinel
@@ -50,7 +50,6 @@ services:
       - consensus-data:/cosmos
     entrypoint:
       - docker-entrypoint.sh
-      - start
 
   cli:
     image: sentinel:${SENTINEL_VERSION}
@@ -129,61 +128,61 @@ services:
         ls -la /data/
         echo "Key created!"
 
-  # register-validator:
-  #   image: sentinel:${SENTINEL_VERSION}
-  #   pull_policy: never
-  #   user: sentinel
-  #   profiles:
-  #     - tools
-  #   restart: "no"
-  #   environment:
-  #     - MONIKER=${MONIKER}
-  #   volumes:
-  #     - consensus-data:/cosmos
-  #     - ./keys/operator:/data
-  #     - ./keys/consensus:/keys
-  #   entrypoint:
-  #     - sh
-  #     - -c
-  #     - |
-  #       set -eu
-  #       echo "Registering validator ${MONIKER}"
-  #       if [ ! -f /data/${MONIKER}.info ]; then
-  #         echo "Operator wallet not found, aborting."
-  #         exit 1
-  #       fi
-  #       if [ ! -f /keys/priv_validator_key.json ]; then
-  #         echo "Validator key not found, aborting."
-  #         exit 1
-  #       fi
+  register-validator:
+    image: sentinel:${SENTINEL_VERSION}
+    pull_policy: never
+    user: sentinel
+    profiles:
+      - tools
+    restart: "no"
+    environment:
+      - MONIKER=${MONIKER}
+    volumes:
+      - consensus-data:/cosmos
+      - ./keys/operator:/data
+      - ./keys/consensus:/keys
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -eu
+        echo "Registering validator ${MONIKER}"
+        if [ ! -f /data/${MONIKER}.info ]; then
+          echo "Operator wallet not found, aborting."
+          exit 1
+        fi
+        if [ ! -f /keys/priv_validator_key.json ]; then
+          echo "Validator key not found, aborting."
+          exit 1
+        fi
 
-  #       cd /tmp
+        cd /tmp
 
-  #       # Get the validator address
-  #       VAL_PUBKEY=$(sentinelhub tendermint show-validator --home=/cosmos)
-  #       WALLET_ADDR=$(cat /data/${MONIKER}.address)
+        # Get the validator address
+        VAL_PUBKEY=$(sentinelhub tendermint show-validator --home=/cosmos)
+        WALLET_ADDR=$(cat /data/${MONIKER}.address)
 
-  #       echo "Creating validator with pubkey ${VAL_PUBKEY} and wallet ${WALLET_ADDR}"
+        echo "Creating validator with pubkey ${VAL_PUBKEY} and wallet ${WALLET_ADDR}"
 
-  #       # Register the validator
-  #       sentinelhub tx staking create-validator \
-  #         --amount=1000000udvpn \
-  #         --pubkey="${VAL_PUBKEY}" \
-  #         --moniker="${MONIKER}" \
-  #         --chain-id=${NETWORK} \
-  #         --commission-rate="0.10" \
-  #         --commission-max-rate="0.20" \
-  #         --commission-max-change-rate="0.01" \
-  #         --min-self-delegation="1" \
-  #         --gas="auto" \
-  #         --gas-adjustment=1.5 \
-  #         --gas-prices=0.1udvpn \
-  #         --home=/cosmos \
-  #         --from=${WALLET_ADDR} \
-  #         --keyring-backend=test \
-  #         -y
+        # Register the validator
+        sentinelhub tx staking create-validator \
+          --amount=1000000udvpn \
+          --pubkey="${VAL_PUBKEY}" \
+          --moniker="${MONIKER}" \
+          --chain-id=${NETWORK} \
+          --commission-rate="0.10" \
+          --commission-max-rate="0.20" \
+          --commission-max-change-rate="0.01" \
+          --min-self-delegation="1" \
+          --gas="auto" \
+          --gas-adjustment=1.5 \
+          --gas-prices=0.1udvpn \
+          --home=/cosmos \
+          --from=${WALLET_ADDR} \
+          --keyring-backend=test \
+          -y
 
-  #       echo "Validator registered!"
+        echo "Validator registered!"
 
 volumes:
   consensus-data:

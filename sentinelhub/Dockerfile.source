@@ -43,7 +43,7 @@ ENV DAEMON_HOME=${DAEMON_HOME}
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        ca-certificates jq curl procps lz4 && \
+        ca-certificates jq curl procps lz4 unzip && \
     rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p ${DAEMON_HOME}
@@ -53,26 +53,22 @@ RUN adduser \
     --disabled-login \
     --gecos "" \
     --shell /sbin/nologin \
-    --home "${DAEMON_HOME}" \
-    --uid ${UID} \
-    ${USER}
+    --uid "${UID}" \
+    "${USER}"
+
+# Give ownership of DAEMON_HOME to USER_NAME
+RUN chown -R ${USER}:${USER} ${DAEMON_HOME}
 
 # Copy the binaries from the build stage
-COPY --from=build /go/bin/sentinelhub /usr/local/bin/
+COPY --from=build /go/bin/$DAEMON_NAME /usr/bin/$DAEMON_NAME
 COPY --from=build /usr/lib/libwasmvm.x86_64.so /usr/lib/
 COPY --from=build /go/bin/dasel /usr/local/bin/
 
 # Copy the entrypoint script
-COPY docker-entrypoint.sh /usr/local/bin/
-
-# Set executable permissions on the entrypoint script
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/sentinelhub
-
-# Change ownership of the home directory
-RUN chown -R ${USER}:${USER} "${DAEMON_HOME}"
+COPY docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
+RUN chmod +x /usr/bin/docker-entrypoint.sh
 
 USER ${USER}
 WORKDIR ${DAEMON_HOME}
 
-ENTRYPOINT ["sentinelhub"]
+ENTRYPOINT ["docker-entrypoint.sh"]

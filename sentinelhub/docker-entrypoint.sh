@@ -8,11 +8,14 @@ if [[ ! -f /cosmos/.initialized ]]; then
   sentinelhub init $MONIKER --chain-id $NETWORK --home /cosmos --overwrite
 
   echo "Downloading config..."
-  SEEDS=$(curl -sL https://raw.githubusercontent.com/sentinel-official/networks/master/$NETWORK/seeds.txt | tr '\n' ',')
 
-  sentinelhub download-genesis $NETWORK --home /cosmos
+  SEEDS=$(curl -s https://raw.githubusercontent.com/cosmos/chain-registry/master/sentinel/chain.json | jq -r '[.peers.seeds[] | "\(.id)@\(.address)"] | join(",")')
+
+  cd /cosmos/config && \
+  curl -sL -o genesis.zip https://raw.githubusercontent.com/sentinel-official/networks/main/$NETWORK/genesis.zip && \
+  unzip -o genesis.zip && rm genesis.zip
+
   dasel put -f /cosmos/config/config.toml -v $SEEDS p2p.seeds
-  dasel put -f /cosmos/config/config.toml -v "null" indexer
 
   if [ -n "$SNAPSHOT" ]; then
     echo "Downloading snapshot..."
@@ -49,29 +52,16 @@ else
   echo "Already initialized!"
 fi
 
-# Configure pruning
-if [ "${PRUNING}" != "default" ]; then
-  echo "Setting pruning to ${PRUNING}"
-  dasel put -f /cosmos/config/app.toml -v "${PRUNING}" pruning
-fi
-
-if [ "${MIN_RETAIN_BLOCKS}" != "0" ]; then
-  echo "Setting min-retain-blocks to ${MIN_RETAIN_BLOCKS}"
-  dasel put -f /cosmos/config/app.toml -v "${MIN_RETAIN_BLOCKS}" min-retain-blocks
-fi
-
 # Set other necessary configurations
-dasel put -f /cosmos/config/app.toml -v "*" api.enable
+dasel put -f /cosmos/config/config.toml -v ${MONIKER} moniker
+dasel put -f /cosmos/config/app.toml -v true api.enable
 dasel put -f /cosmos/config/app.toml -v "tcp://0.0.0.0:${CL_REST_PORT:-1317}" api.address
-dasel put -f /cosmos/config/app.toml -v "*" grpc.enable
+dasel put -f /cosmos/config/app.toml -v true grpc.enable
 dasel put -f /cosmos/config/app.toml -v "0.0.0.0:${CL_GRPC_PORT:-9090}" grpc.address
 dasel put -f /cosmos/config/config.toml -v "tcp://0.0.0.0:${CL_RPC_PORT:-26657}" rpc.laddr
 dasel put -f /cosmos/config/config.toml -v "tcp://0.0.0.0:${CL_P2P_PORT:-26656}" p2p.laddr
+dasel put -f /cosmos/config/app.toml -v $MIN_RETAIN_BLOCKS min-retain-blocks
+dasel put -f /cosmos/config/app.toml -v $PRUNING pruning
+dasel put -f /cosmos/config/config.toml -v "null" tx_index.indexer
 
-# Set the log level
-if [ -n "${LOG_LEVEL}" ]; then
-  echo "Setting log level to ${LOG_LEVEL}"
-  dasel put -f /cosmos/config/config.toml -v "${LOG_LEVEL}" log_level
-fi
-
-exec sentinelhub "$@" --home=/cosmos ${EXTRA_FLAGS:-}
+exec sentinelhub start "$@" --home=/cosmos --log_format json ${EXTRA_FLAGS:-}
