@@ -1,0 +1,27 @@
+FROM golang:1.24-bullseye AS build
+
+ARG COSMOVISOR_VERSION=v1.5.0
+ARG METRICS_EXPORTER_VERSION=v0.3.0
+
+WORKDIR /app
+
+# Install Cosmos Metrics Exporter
+RUN git clone --depth 1 --branch ${METRICS_EXPORTER_VERSION} https://github.com/teamr3/cosmos-metrics-exporter.git . && \
+    go mod download && \
+    CGO_ENABLED=0 go build -o /go/bin/cosmos-metrics-exporter ./cmd/cosmos-metrics-exporter
+
+FROM debian:bullseye-slim
+
+# Install runtime dependencies
+RUN apt-get update && \
+    apt-get install -y curl wget jq && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy binaries from build stage
+COPY --from=build /go/bin/cosmos-metrics-exporter /usr/local/bin/
+
+# Set the entrypoint
+ENTRYPOINT ["cosmos-metrics-exporter"]
+
+# Set the default command
+CMD ["--telemetry.addr=:8080", "--telemetry.endpoint=/metrics"]

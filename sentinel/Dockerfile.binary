@@ -1,0 +1,61 @@
+FROM debian:bullseye-slim
+
+ARG USER
+ARG DAEMON_VERSION
+ARG DAEMON_HOME
+ARG DAEMON_NAME
+ARG UID=10001
+
+ENV USER=${USER}
+ENV DAEMON_VERSION=${DAEMON_VERSION}
+ENV DAEMON_HOME=${DAEMON_HOME}
+ENV DAEMON_NAME=${DAEMON_NAME}
+
+# Set up dependencies
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates curl jq wget lz4 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install dasel
+RUN cd /tmp && \
+    wget -O dasel https://github.com/TomWright/dasel/releases/download/v2.5.0/dasel_linux_amd64 && \
+    chmod +x dasel && \
+    mv dasel /usr/local/bin/
+
+# Set up daemon binary
+RUN mkdir -p /tmp/sentinel && \
+    cd /tmp/sentinel && \
+    wget -q "https://github.com/sentinel-official/hub/releases/download/${DAEMON_VERSION}/sentinelhub_${DAEMON_VERSION}_linux_amd64.tar.gz" && \
+    tar -xzf "sentinelhub_${DAEMON_VERSION}_linux_amd64.tar.gz" && \
+    mv sentinelhub /usr/local/bin/ && \
+    chmod +x /usr/local/bin/sentinelhub && \
+    cd / && \
+    rm -rf /tmp/sentinel
+
+# Create daemon home directory
+RUN mkdir -p ${DAEMON_HOME}
+
+# Create a non-root user
+RUN adduser \
+    --disabled-login \
+    --gecos "" \
+    --shell /sbin/nologin \
+    --home "${DAEMON_HOME}" \
+    --uid ${UID} \
+    ${USER}
+
+# Copy the entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+
+# Set executable permissions on the entrypoint script
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Change ownership of the home directory
+RUN chown -R ${USER}:${USER} "${DAEMON_HOME}"
+
+USER ${USER}
+WORKDIR ${DAEMON_HOME}
+
+ENTRYPOINT ["docker-entrypoint.sh"]

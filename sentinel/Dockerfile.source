@@ -1,0 +1,78 @@
+FROM golang:1.24-bullseye AS build
+
+ARG DAEMON_VERSION
+
+# Set up dependencies
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        curl git build-essential wget tar ca-certificates \
+        libleveldb-dev make clang pkg-config libssl-dev jq ncdu bsdmainutils && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set up the working directory
+WORKDIR /root/code
+
+# Install dasel
+RUN go install github.com/tomwright/dasel/v2/cmd/dasel@master
+
+# Clone the repository and checkout the required version
+RUN git clone https://github.com/sentinel-official/hub.git . && \
+    git checkout ${DAEMON_VERSION}
+
+RUN ARCH=$(uname -m) &&  \
+    WASM_VERSION=$(go list -m all | grep github.com/CosmWasm/wasmvm | awk '{print $NF}') && \
+    wget -q -O /usr/lib/libwasmvm.x86_64.so https://github.com/CosmWasm/wasmvm/releases/download/${WASM_VERSION}/libwasmvm.${ARCH}.so
+
+# Build the project
+RUN make install
+
+# Create a minimal runtime image
+FROM debian:bullseye-slim
+
+ARG DAEMON_NAME
+ARG USER
+ARG DAEMON_HOME
+ARG UID=10001
+
+ENV DAEMON_NAME=${DAEMON_NAME}
+ENV USER=${USER}
+ENV DAEMON_HOME=${DAEMON_HOME}
+
+# Set up runtime dependencies
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates jq curl procps lz4 && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p ${DAEMON_HOME}
+
+# Create a non-root user
+RUN adduser \
+    --disabled-login \
+    --gecos "" \
+    --shell /sbin/nologin \
+    --home "${DAEMON_HOME}" \
+    --uid ${UID} \
+    ${USER}
+
+# Copy the binaries from the build stage
+COPY --from=build /go/bin/sentinelhub /usr/local/bin/
+COPY --from=build /usr/lib/libwasmvm.x86_64.so /usr/lib/
+COPY --from=build /go/bin/dasel /usr/local/bin/
+
+# Copy the entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+
+# Set executable permissions on the entrypoint script
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/sentinelhub
+
+# Change ownership of the home directory
+RUN chown -R ${USER}:${USER} "${DAEMON_HOME}"
+
+USER ${USER}
+WORKDIR ${DAEMON_HOME}
+
+ENTRYPOINT ["sentinelhub"]
