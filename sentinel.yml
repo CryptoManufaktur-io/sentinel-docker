@@ -70,6 +70,16 @@ services:
       - traefik.http.routers.${REST_LB:-sentinel-rest-lb}.rule=Host(`${REST_LB:-sentinel-rest-lb}.${DOMAIN}`)
       - traefik.http.routers.${REST_LB:-sentinel-rest-lb}.tls.certresolver=letsencrypt
       - traefik.http.services.${REST_HOST:-sentinel-rest}.loadbalancer.server.port=${CL_REST_PORT:-1317}
+      - traefik.http.routers.${GRPC_HOST:-sentinel-grpc}.service=${GRPC_HOST:-sentinel-grpc}
+      - traefik.http.routers.${GRPC_HOST:-sentinel-grpc}.entrypoints=websecure
+      - traefik.http.routers.${GRPC_HOST:-sentinel-grpc}.rule=Host(`${GRPC_HOST:-sentinel-grpc}.${DOMAIN}`)
+      - traefik.http.routers.${GRPC_HOST:-sentinel-grpc}.tls.certresolver=letsencrypt
+      - traefik.http.routers.${GRPC_LB:-sentinel-grpc-lb}.service=${GRPC_HOST:-sentinel-grpc}
+      - traefik.http.routers.${GRPC_LB:-sentinel-grpc-lb}.entrypoints=websecure
+      - traefik.http.routers.${GRPC_LB:-sentinel-grpc-lb}.rule=Host(`${GRPC_LB:-sentinel-grpc-lb}.${DOMAIN}`)
+      - traefik.http.routers.${GRPC_LB:-sentinel-grpc-lb}.tls.certresolver=letsencrypt
+      - traefik.http.services.${GRPC_HOST:-sentinel-grpc}.loadbalancer.server.port=${CL_GRPC_PORT:-9090}
+      - traefik.http.services.${GRPC_HOST:-sentinel-grpc}.loadbalancer.server.scheme=h2c
       - traefik.http.routers.${WS_HOST:-sentinelws}.service=${WS_HOST:-sentinelws}
       - traefik.http.routers.${WS_HOST:-sentinelws}.entrypoints=websecure
       - traefik.http.routers.${WS_HOST:-sentinelws}.rule=Host(`${WS_HOST:-sentinelws}.${DOMAIN}`)
