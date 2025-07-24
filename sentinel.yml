@@ -50,6 +50,40 @@ services:
       - consensus-data:/cosmos
     entrypoint:
       - docker-entrypoint.sh
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.${RPC_HOST:-sentinel-rpc}.service=${RPC_HOST:-sentinel-rpc}
+      - traefik.http.routers.${RPC_HOST:-sentinel-rpc}.entrypoints=websecure
+      - traefik.http.routers.${RPC_HOST:-sentinel-rpc}.rule=Host(`${RPC_HOST:-sentinel-rpc}.${DOMAIN}`)
+      - traefik.http.routers.${RPC_HOST:-sentinel-rpc}.tls.certresolver=letsencrypt
+      - traefik.http.routers.${RPC_HOST:-sentinel-rpc}.lb.service=${RPC_HOST:-sentinel-rpc}
+      - traefik.http.routers.${RPC_HOST:-sentinel-rpc}.lb.entrypoints=websecure
+      - traefik.http.routers.${RPC_HOST:-sentinel-rpc}.lb.rule=Host(`${RPC_LB:-sentinel-rpc-lb}.${DOMAIN}`)
+      - traefik.http.routers.${RPC_HOST:-sentinel-rpc}.lb.tls.certresolver=letsencrypt
+      - traefik.http.services.${RPC_HOST:-sentinel-rpc}.loadbalancer.server.port=${CL_RPC_PORT:-26657}
+      - traefik.http.routers.${REST_HOST:-sentinel-rest}.service=${REST_HOST:-sentinel-rest}
+      - traefik.http.routers.${REST_HOST:-sentinel-rest}.entrypoints=websecure
+      - traefik.http.routers.${REST_HOST:-sentinel-rest}.rule=Host(`${REST_HOST:-sentinel-rest}.${DOMAIN}`)
+      - traefik.http.routers.${REST_HOST:-sentinel-rest}.tls.certresolver=letsencrypt
+      - traefik.http.routers.${REST_HOST:-sentinel-rest}.lb.service=${REST_HOST:-sentinel-rest}
+      - traefik.http.routers.${REST_HOST:-sentinel-rest}.lb.entrypoints=websecure
+      - traefik.http.routers.${REST_HOST:-sentinel-rest}.lb.rule=Host(`${REST_LB:-sentinel-rest-lb}.${DOMAIN}`)
+      - traefik.http.routers.${REST_HOST:-sentinel-rest}.lb.tls.certresolver=letsencrypt
+      - traefik.http.services.${REST_HOST:-sentinel-rest}.loadbalancer.server.port=${CL_REST_PORT:-1317}
+      - traefik.http.routers.${WS_HOST:-sentinelws}.service=${WS_HOST:-sentinelws}
+      - traefik.http.routers.${WS_HOST:-sentinelws}.entrypoints=websecure
+      - traefik.http.routers.${WS_HOST:-sentinelws}.rule=Host(`${WS_HOST:-sentinelws}.${DOMAIN}`)
+      - traefik.http.routers.${WS_HOST:-sentinelws}.tls.certresolver=letsencrypt
+      - traefik.http.routers.${WS_HOST:-sentinelws}.lb.service=${WS_HOST:-sentinelws}
+      - traefik.http.routers.${WS_HOST:-sentinelws}.lb.entrypoints=websecure
+      - traefik.http.routers.${WS_HOST:-sentinelws}.lb.rule=Host(`${WS_LB:-sentinelws-lb}.${DOMAIN}`)
+      - traefik.http.routers.${WS_HOST:-sentinelws}.lb.tls.certresolver=letsencrypt
+      - traefik.http.services.${WS_HOST:-sentinelws}.loadbalancer.server.port=${WS_PORT:-8546}
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=26660
+      - metrics.instance=sentinel
+      - metrics.network=${NETWORK}
 
   cli:
     image: sentinel:${SENTINEL_VERSION}
